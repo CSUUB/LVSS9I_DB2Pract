@@ -1,0 +1,4 @@
+INDEX VERSION 1.134+C:\Users\csuba\Desktop\DB2\LVSS9I_JDBC\.metadata\.plugins\org.eclipse.jdt.core
+1501418.index
+1865797976.index
+1986319341.index
