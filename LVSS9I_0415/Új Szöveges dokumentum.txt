@@ -1,0 +1,88 @@
+--1/a Piros_Auto_create.sql
+
+
+CREATE TABLE Piros_Auto (
+    rsz VARCHAR2(20),
+    tipus VARCHAR2(20),
+    szin VARCHAR2(20),
+    kor NUMBER(3, 0),
+    ar NUMBER(10, 0)
+);
+
+
+
+--1/b Piros_Auto_feltolt.sql
+
+INSERT INTO Piros_Auto (rsz, tipus, szin, kor, ar) VALUES ('ABC500', 'Opel Corsa', 'piros', 8, 800000);
+INSERT INTO Piros_Auto (rsz, tipus, szin, kor, ar) VALUES ('MCC325', 'Opel Insignia', 'fekete', 2, 6800000);
+INSERT INTO Piros_Auto (rsz, tipus, szin, kor, ar) VALUES ('BBM104', 'Suzuki Swift', 'piros', 5, 1500000);
+INSERT INTO Piros_Auto (rsz, tipus, szin, kor, ar) VALUES ('CHR411', 'Renault Twingo', 'piros', 12, 700000);
+INSERT INTO Piros_Auto (rsz, tipus, szin, kor, ar) VALUES ('JRZ932', 'BMW M3', 'fekete', 5, 4500000);
+INSERT INTO Piros_Auto (rsz, tipus, szin, kor, ar) VALUES ('JEG113', 'Opel Corsa', 'piros', 7, 900000);
+INSERT INTO Piros_Auto (rsz, tipus, szin, kor, ar) VALUES ('DER842', 'Seat Ibiza', 'szürke', 14, 500000);
+INSERT INTO Piros_Auto (rsz, tipus, szin, kor, ar) VALUES ('BAB422', 'Lada 1300S', 'fehér', 28, 220000);
+INSERT INTO Piros_Auto (rsz, tipus, szin, kor, ar) VALUES ('UFF666', 'Audi TT', 'fekete', 4, 7500000);
+
+
+
+
+
+--1/c  MasikPiros_Auto.sql
+CREATE TABLE MasikPiros_Auto (
+    rsz VARCHAR2(20),
+    tipus VARCHAR2(20),
+    szin VARCHAR2(20),
+    kor NUMBER(3),
+    ar NUMBER(10)
+);
+
+
+
+
+--d.) Kurzor használatával írjon egy PL/SQL blokkot a piros autók lekérdezésére és külön táblában (MasikPiros_Auto) való eltárolására!
+--Mentés: PirosAuto.sql
+--A kurzor neve: piros; változó név: x
+--A PirosAuto.sql sckript lefuttatása után, a MasikPiros_Auto tábla frissítése, kilistázza a piros autókat
+
+
+
+
+SET SERVEROUTPUT ON;
+
+DECLARE
+    CURSOR piros IS SELECT rsz, tipus, szin, kor, ar FROM Piros_Auto WHERE szin = 'piros';
+        
+
+    x piros%ROWTYPE;     -- Változó deklarálása a kurzor egy sorának tárolására
+
+BEGIN
+    OPEN piros;
+    
+    LOOP
+       FETCH piros INTO x;
+       EXIT WHEN piros%NOTFOUND;
+       INSERT INTO MasikPiros_Auto (rsz, tipus, szin, kor, ar) VALUES (x.rsz, x.tipus, x.szin, x.kor, x.ar);
+    END LOOP;
+    CLOSE piros;
+END;
+SELECT * FROM MasikPiros_Auto;
+
+
+
+
+
+--1/e PirosAutoFor.sql
+SET SERVEROUTPUT ON;
+
+DECLARE
+    -- Kurzor deklarálása a piros autók lekérdezésére
+    CURSOR piros_kurzor IS SELECT rsz, tipus, szin, kor, ar FROM Piros_Auto WHERE szin = 'piros';
+BEGIN
+    FOR auto_rekord IN piros_kurzor LOOP
+        INSERT INTO MasikPiros_Auto (rsz, tipus, szin, kor, ar) 
+        VALUES (auto_rekord.rsz, auto_rekord.tipus, auto_rekord.szin, auto_rekord.kor, auto_rekord.ar);
+    END LOOP;
+END;
+SELECT * FROM MasikPiros_Auto;
+
+
