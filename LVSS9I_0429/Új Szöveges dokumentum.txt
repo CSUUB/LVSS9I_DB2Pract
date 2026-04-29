@@ -1,0 +1,131 @@
+BEGIN
+    BEGIN EXECUTE IMMEDIATE 'DROP TABLE Naplo5'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN EXECUTE IMMEDIATE 'DROP TABLE Vasarlo'; EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    EXECUTE IMMEDIATE 'CREATE TABLE Naplo5 (
+        Esemeny VARCHAR2(20),
+        Adat VARCHAR2(100),
+        Datum TIMESTAMP(6)
+    )';
+
+
+    EXECUTE IMMEDIATE 'CREATE TABLE Vasarlo (
+        VID CHAR(3),
+        NEV VARCHAR2(30) NOT NULL,
+        CIM VARCHAR2(30),
+        FIZMOD NUMBER(3,0)
+    )';
+
+
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v01'', ''Kék Alma'', ''Mc. Kék u.12'', 2)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v02'', ''Zöld Gabi'', ''Mc. Hó u.72'', 3)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v03'', ''Feke F...'', ''Mc.Kőu.25'', 1)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v04'', ''Korcs Éva'', ''Eger. Lap...'', 1)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v05'', ''Kis Béla'', ''Eger. Bé u.9'', 2)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v06'', ''Kis Jenő'', ''Eger. Cé ...'', 3)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v07'', ''Kis Noé'', ''Eger. Cé ...'', 4)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v08'', ''Kis Tas'', ''Eger. Cé ...'', 1)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v09'', ''Hó Manó'', ''Nyék. Tóu.74'', 2)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v10'', ''Ká Rozi'', ''Nyék. Káu.5'', 3)';
+    EXECUTE IMMEDIATE 'INSERT INTO Vasarlo VALUES (''v11'', ''Víz Jenő'', ''Mc. Útu.39'', 3)';
+
+    COMMIT;
+END;
+
+
+
+
+--Trigger létrehozása
+create or replace trigger TB after insert on vasarlo for each row
+BEGIN
+	insert into Naplo5 values ('Beszúrás', :new.VID||'_'||:new.Nev||:new.Cim, sysdate);
+end;
+
+select * from Vasarlo;
+
+
+--trigger törlés
+drop trigger TB;
+
+--módosítás
+create or replace trigger TM after update on Vasarlo for each row
+DECLARE
+	s varchar(100);
+
+begin
+IF: old.VID != :new.vid THEN
+	S := S || :OLD.VID||'_'||:new.vid||',';
+END IF;
+	S := S || :OLD.nev||'_'||:new.nev||',';
+END IF;
+	S := S || :OLD.cim||'_'||:new.cim||',';
+END IF;
+	S := S || :OLD.fizmod||'_'||:new.fizmod||',';
+END IF;
+	S := SUBSTR(s,1,LENGTH(s)-1);
+insert into Naplo5 Values ('Módosítás', s, sysdate);
+end;
+
+begin
+update Vasarlo set vid='v11', nev='Víz Jenő' where vid='v20';
+end;
+select *from Vasarlo;
+
+
+
+
+drop trigger TM;
+
+
+
+create or replace trigger TT after delete on Vasarlo for each row
+BEGIN
+	insert into Naplo5 values ('Törlés', :old.VID||'_'||user,sysdate;
+end;
+
+
+delete from Vasarlo where vid in ('v20','v14');
+select * from Vasarlo;
+select * from Naplo5;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+BEGIN
+    BEGIN EXECUTE IMMEDIATE 'DROP TABLE Termek CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+
+    EXECUTE IMMEDIATE 'CREATE TABLE Termek (
+        TKOD CHAR(3) NOT NULL,
+        NEV VARCHAR2(20) NOT NULL,
+        AR NUMBER(38,0),
+        LEIRAS VARCHAR2(20),
+        KATEGORIA CHAR(3) NOT NULL
+    )';
+
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t01'', ''sör'', 200, ''világos'', ''k02'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t02'', ''bor'', 200, ''vörös'', ''k02'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t03'', ''zsömle'', 20, ''kerek'', ''k01'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t04'', ''zsír'', 100, ''disznó'', ''k01'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t05'', ''paprika'', 100, ''zöld'', ''k01'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t06'', ''csipsz'', 300, ''sajtos'', ''k01'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t07'', ''csipsz'', 400, ''retkes'', ''k01'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t11'', ''Fű'', 5000, ''KO'', ''k04'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t13'', ''Benzin'', 250, ''Óccsó'', ''k04'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t14'', ''Nő'', 10000, ''Szőke'', ''k04'')';
+    EXECUTE IMMEDIATE 'INSERT INTO Termek (TKOD, NEV, AR, LEIRAS, KATEGORIA) VALUES (''t15'', ''Nő'', 20000, ''Barna'', ''k04'')';
+
+    COMMIT;
+END;
+
+
+
