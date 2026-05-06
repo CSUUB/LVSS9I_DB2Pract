@@ -1,0 +1,303 @@
+CREATE TABLE UGYFEL (
+    id NUMBER PRIMARY KEY,
+    nev VARCHAR2(50) NOT NULL,
+    cim VARCHAR2(100) NOT NULL,
+    mobil VARCHAR2(12) NOT NULL,
+    regisztralt DATE DEFAULT SYSDATE NOT NULL,
+    szallitas NUMBER NOT NULL
+);
+
+
+BEGIN
+    INSERT INTO UGYFEL (id, nev, cim, mobil, regisztralt, szallitas) 
+    VALUES (1, 'Kovács János', '1032 Budapest, Bécsi út 45.', '301234567', TO_DATE('2000-01-01', 'YYYY-MM-DD'), 20);
+
+    INSERT INTO UGYFEL (id, nev, cim, mobil, regisztralt, szallitas) 
+    VALUES (2, 'Nagy Erzsébet', '4024 Debrecen, Piac utca 10.', '309876543', TO_DATE('2000-01-01', 'YYYY-MM-DD'), 20);
+
+    INSERT INTO UGYFEL (id, nev, cim, mobil, regisztralt, szallitas) 
+    VALUES (3, 'Szabó Péter', '6720 Szeged, Tisza Lajos krt. 5.', '305554433', TO_DATE('2000-01-01', 'YYYY-MM-DD'), 20);
+
+    INSERT INTO UGYFEL (id, nev, cim, mobil, regisztralt, szallitas) 
+    VALUES (4, 'Tóth Anita', '8000 Székesfehérvár, Fő tér 1.', '302221188', TO_DATE('2000-01-01', 'YYYY-MM-DD'), 20);
+    
+    COMMIT;
+END;
+
+
+--8: ID generálás
+CREATE OR REPLACE TRIGGER ugyfel_id BEFORE INSERT ON UGYFEL FOR EACH ROW
+BEGIN
+    IF :NEW.id IS NULL THEN
+        SELECT NVL(MAX(id), 0) + 1  INTO :NEW.id  FROM UGYFEL;
+    END IF;
+END;
+
+
+--7: Eseménynaplózás
+BEGIN
+    EXECUTE IMMEDIATE 
+    'CREATE TABLE NAPLO (
+        id NUMBER PRIMARY KEY,
+        muvelet VARCHAR2(20) NOT NULL,
+        datum DATE DEFAULT SYSDATE NOT NULL,
+        reszletek VARCHAR2(200)
+    )';
+
+    EXECUTE IMMEDIATE
+        'CREATE OR REPLACE TRIGGER naplo AFTER INSERT OR UPDATE OR DELETE ON UGYFEL FOR EACH ROW
+        DECLARE
+        muvelet VARCHAR2(20);
+        reszletek VARCHAR2(200);
+        new_id NUMBER;
+        BEGIN
+            IF INSERTING THEN
+                muvelet := ''BESZÚRÁS'';
+                reszletek := ''Új ügyfél: '' || :NEW.id;
+                
+            ELSIF UPDATING THEN
+                muvelet := ''MÓDOSÍTÁS'';
+                reszletek := ''Módosított ügyfél: '' || :OLD.id;
+                
+            ELSIF DELETING THEN
+                muvelet := ''TÖRLÉS'';
+                reszletek := ''Törölt ügyfél: '' || :OLD.id;
+            END IF;
+         
+            SELECT NVL(MAX(id), 0) + 1 INTO new_id FROM NAPLO;
+
+            INSERT INTO NAPLO (id, muvelet, datum, reszletek)
+            VALUES (new_id, muvelet, SYSDATE, reszletek);
+        END;';
+END;
+
+
+
+--9: Regisztrációs felügyelet
+CREATE OR REPLACE TRIGGER datum BEFORE INSERT OR UPDATE ON UGYFEL FOR EACH ROW
+BEGIN
+    IF :NEW.regisztralt < TO_DATE('2000-01-01', 'YYYY-MM-DD') OR :NEW.regisztralt > SYSDATE THEN
+        RAISE_APPLICATION_ERROR(-20000, 'Csak 2000-től (év) a mai dátumig lehet megadni regisztrációs időt!');        
+    END IF;
+END;
+
+
+--1: Ügyfelek felvitele
+CREATE OR REPLACE PROCEDURE uj_ugyfel (
+    p_nev IN UGYFEL.nev%TYPE,
+    p_cim IN UGYFEL.cim%TYPE,
+    p_mobil IN UGYFEL.mobil%TYPE,
+    p_regisztralt IN UGYFEL.regisztralt%TYPE,
+    p_szallitas IN UGYFEL.szallitas%TYPE
+)
+IS
+BEGIN
+    INSERT INTO UGYFEL (nev, cim, mobil, regisztralt, szallitas)
+    VALUES (p_nev, p_cim, p_mobil, p_regisztralt, p_szallitas);
+    COMMIT; 
+    
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END uj_ugyfel;
+
+
+
+
+--2: Mobilszám módosítása
+CREATE OR REPLACE PROCEDURE ugyfel_mobil (
+    p_id       IN UGYFEL.id%TYPE,
+    p_mobil IN UGYFEL.mobil%TYPE
+)
+IS
+i NUMBER;
+BEGIN
+    SELECT COUNT(*) INTO i FROM UGYFEL WHERE id = p_id;
+    IF i = 0 THEN RAISE_APPLICATION_ERROR(-20000, 'Nincs ilyen ügyfél!'); END IF;
+    UPDATE UGYFEL SET mobil = p_mobil WHERE id = p_id;
+    COMMIT;
+    
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END ugyfel_mobil;
+
+
+
+--3: Törlés ID szerint
+CREATE OR REPLACE PROCEDURE ugyfeltorles_id ( p_id IN UGYFEL.id%TYPE )
+IS
+ i NUMBER;
+BEGIN
+    DELETE FROM UGYFEL WHERE id = p_id;
+    i := SQL%ROWCOUNT;
+    IF i = 0 THEN RAISE_APPLICATION_ERROR(-20000, 'Nincs ilyen ügyfél!'); END IF;
+    COMMIT;
+    
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END ugyfeltorles_id;
+
+
+
+--3: Törlés szallitási idő szerint
+CREATE OR REPLACE PROCEDURE ugyfeltorles_szallitas( p_maxido IN UGYFEL.szallitas%TYPE )
+IS
+i NUMBER;
+BEGIN
+    DELETE FROM UGYFEL WHERE szallitas > p_maxido;
+    i := SQL%ROWCOUNT;
+    IF i = 0 THEN RAISE_APPLICATION_ERROR(-20000, 'Nem történt törlés!'); END IF;
+    COMMIT;
+    
+EXCEPTION WHEN OTHERS THEN ROLLBACK; RAISE;
+END ugyfeltorles_szallitas;
+
+
+
+
+--4: Név listázása
+CREATE OR REPLACE FUNCTION find_nev ( f_id IN UGYFEL.id%TYPE ) RETURN VARCHAR2
+IS
+f_nev UGYFEL.nev%TYPE;
+BEGIN
+    SELECT nev INTO f_nev FROM UGYFEL WHERE id = f_id;
+    RETURN f_nev;
+    
+    EXCEPTION WHEN NO_DATA_FOUND THEN RETURN 'Nincs ilyen rekord!';
+END find_nev;
+
+
+
+
+--4: Ügyféladatok listázása
+CREATE OR REPLACE FUNCTION ugyfeladatok ( f_id IN UGYFEL.id%TYPE ) RETURN VARCHAR2 
+IS
+adatok UGYFEL%ROWTYPE;
+BEGIN
+    SELECT * INTO adatok FROM UGYFEL WHERE id = f_id;
+    RETURN 
+        adatok.nev || ' | ' || 
+        adatok.cim || ' | ' ||
+        adatok.mobil || ' | ' || 
+        TO_CHAR(adatok.regisztralt, 'YYYY.MM.DD') || ' | ' ||
+        adatok.szallitas;
+           
+    EXCEPTION WHEN NO_DATA_FOUND THEN RETURN 'Nincs ilyen rekord!';
+END ugyfeladatok;
+
+
+
+--5: Átlagos szállítási idő településenként
+CREATE OR REPLACE FUNCTION szallitasido ( f_helyseg IN VARCHAR2) RETURN NUMBER
+IS
+atlagido NUMBER;
+BEGIN
+    SELECT AVG(szallitas) INTO atlagido FROM UGYFEL WHERE cim LIKE '%' || f_helyseg || '%';
+    
+    IF atlagido IS NULL THEN RAISE_APPLICATION_ERROR(-20000, 'Nincs találat!'); END IF;
+    RETURN atlagido;
+END szallitasido;
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+--Új ügyfél rögzítése
+BEGIN 
+    uj_ugyfel(
+        p_nev         => '',
+        p_cim         => '',
+        p_mobil       => '',
+        p_regisztralt => TO_DATE('', 'YYYY-MM-DD'),
+        p_szallitas   =>  --idő
+    );
+END;
+
+
+
+--Mobilszám megváltoztatása
+BEGIN
+    ugyfel_mobil(
+        p_id    => , --ID
+        p_mobil => '' –Új mobilszám
+    );
+END;
+
+
+
+--Ügyféltörlés ID alapján
+BEGIN
+    ugyfeltorles_id( p_id =>  ); --ID
+END;
+
+
+
+--Ügyféltörlés szállítás ideje alapján
+BEGIN
+    ugyfeltorles_szallitas(p_maxido => ); --max elfogadott szállítási idő
+END;
+
+
+
+--Adott azonosítójú ügyfél nevének lekérése
+SELECT find_nev() AS Keresett_Nev FROM DUAL; --(ID)
+
+
+
+--Adott azonosítójú ügyfél adatainak lekérése:
+SELECT ugyfeladatok(1) AS Ugyfel_Adatok FROM DUAL; --(ID)
+
+
+
+--Átlagos szállítási idő kiszámolása adott településre
+SELECT szallitasido('') AS Atlagido FROM DUAL; --('településnév vagy irányítószám')
+
+
+
+--Sima manuális adatbeszúrás
+BEGIN
+    INSERT INTO UGYFEL (nev, cim, mobil, regisztralt, szallitas)
+    VALUES ('Varga Judit', '9021 Győr, Baross Gábor út 12.', '304445566', TO_DATE('2023-09-20', 'YYYY-MM-DD'), 25);
+    COMMIT;
+END;
+
+
+
+--Táblák lekérdezése
+SELECT * FROM UGYFEL ORDER BY id;
+
+SELECT * FROM NAPLO ORDER BY id;
+
+
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+BEGIN
+    BEGIN EXECUTE IMMEDIATE 'DROP TABLE UGYFEL CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN EXECUTE IMMEDIATE 'DROP TABLE NAPLO CASCADE CONSTRAINTS'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN EXECUTE IMMEDIATE 'DROP PROCEDURE uj_ugyfel'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN EXECUTE IMMEDIATE 'DROP PROCEDURE ugyfel_mobil'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN EXECUTE IMMEDIATE 'DROP PROCEDURE ugyfeltorles_szallitas'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN EXECUTE IMMEDIATE 'DROP PROCEDURE ugyfeltorles_id'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    
+    BEGIN EXECUTE IMMEDIATE 'DROP FUNCTION find_nev'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN EXECUTE IMMEDIATE 'DROP FUNCTION ugyfeladatok'; EXCEPTION WHEN OTHERS THEN NULL; END;
+    BEGIN EXECUTE IMMEDIATE 'DROP FUNCTION szallitasido'; EXCEPTION WHEN OTHERS THEN NULL; END;
+END;
